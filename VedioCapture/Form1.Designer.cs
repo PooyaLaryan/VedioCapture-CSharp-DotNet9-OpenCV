@@ -29,6 +29,7 @@
         private void InitializeComponent()
         {
             components = new System.ComponentModel.Container();
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Form1));
             btnLoadVedio = new Button();
             btnPlay = new Button();
             pictureBoxVideo = new PictureBox();
@@ -190,6 +191,7 @@
             Controls.Add(panel2);
             Controls.Add(panel1);
             Controls.Add(pictureBoxVideo);
+            Icon = (Icon)resources.GetObject("$this.Icon");
             Name = "Form1";
             Text = "Vedio Capture";
             Load += Form1_Load;
