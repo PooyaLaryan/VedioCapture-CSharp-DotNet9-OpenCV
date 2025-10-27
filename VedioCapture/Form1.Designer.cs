@@ -76,7 +76,8 @@
             pictureBoxVideo.BackColor = SystemColors.ButtonShadow;
             pictureBoxVideo.Location = new Point(0, 0);
             pictureBoxVideo.Name = "pictureBoxVideo";
-            pictureBoxVideo.Size = new Size(1017, 487);
+            pictureBoxVideo.Size = new Size(1045, 501);
+            pictureBoxVideo.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBoxVideo.TabIndex = 2;
             pictureBoxVideo.TabStop = false;
             // 
@@ -124,13 +125,13 @@
             trackBarVideo.Anchor = AnchorStyles.Left | AnchorStyles.Right;
             trackBarVideo.Location = new Point(12, 8);
             trackBarVideo.Name = "trackBarVideo";
-            trackBarVideo.Size = new Size(993, 45);
+            trackBarVideo.Size = new Size(1021, 45);
             trackBarVideo.TabIndex = 7;
             // 
             // btnCaptureCurrentFrame
             // 
             btnCaptureCurrentFrame.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            btnCaptureCurrentFrame.Location = new Point(861, 12);
+            btnCaptureCurrentFrame.Location = new Point(889, 12);
             btnCaptureCurrentFrame.Name = "btnCaptureCurrentFrame";
             btnCaptureCurrentFrame.Size = new Size(144, 23);
             btnCaptureCurrentFrame.TabIndex = 8;
@@ -149,9 +150,9 @@
             panel1.Controls.Add(btnCapture);
             panel1.Controls.Add(btnCapture2);
             panel1.Dock = DockStyle.Bottom;
-            panel1.Location = new Point(0, 558);
+            panel1.Location = new Point(0, 572);
             panel1.Name = "panel1";
-            panel1.Size = new Size(1017, 51);
+            panel1.Size = new Size(1045, 51);
             panel1.TabIndex = 9;
             // 
             // comboBoxTimeUnit
@@ -176,16 +177,16 @@
             // 
             panel2.Controls.Add(trackBarVideo);
             panel2.Dock = DockStyle.Bottom;
-            panel2.Location = new Point(0, 499);
+            panel2.Location = new Point(0, 513);
             panel2.Name = "panel2";
-            panel2.Size = new Size(1017, 59);
+            panel2.Size = new Size(1045, 59);
             panel2.TabIndex = 10;
             // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(1017, 609);
+            ClientSize = new Size(1045, 623);
             Controls.Add(panel2);
             Controls.Add(panel1);
             Controls.Add(pictureBoxVideo);

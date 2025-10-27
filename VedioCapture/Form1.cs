@@ -61,7 +61,7 @@ namespace VedioCapture
         {
             using (OpenFileDialog ofd = new OpenFileDialog())
             {
-                ofd.Filter = "Video Files|*.mp4;*.avi;*.mov;*.mkv";
+                ofd.Filter = "Video Files|*.mp4;*.avi;*.mov;*.mkv;*.ts";
                 if (ofd.ShowDialog() == DialogResult.OK)
                 {
                     videoPath = ofd.FileName;
@@ -497,72 +497,5 @@ namespace VedioCapture
         {
             comboBoxTimeUnit.SelectedIndex = 0;
         }
-
-
-
-
-
-        //private async void btnCapture2_Click(object sender, EventArgs e)
-        //{
-        //    if (string.IsNullOrEmpty(videoPath))
-        //    {
-        //        MessageBox.Show("لطفا ابتدا ویدیو را انتخاب کنید.");
-        //        return;
-        //    }
-
-        //    double minutes = (double)numericUpDown1.Value;
-        //    if (minutes <= 0)
-        //    {
-        //        MessageBox.Show("زمان فاصله باید بیشتر از صفر باشد.");
-        //        return;
-        //    }
-
-        //    btnCapture2.Enabled = false;
-
-        //    await Task.Run(() =>
-        //    {
-        //        double intervalMs = minutes * 60 * 1000;
-        //        using (var capture = new VideoCapture(videoPath))
-        //        {
-        //            double totalFrames = capture.Get(CapProp.FrameCount);
-        //            double fps = capture.Get(CapProp.Fps);
-        //            double durationMs = (totalFrames / fps) * 1000;
-
-        //            int index = 0;
-
-        //            for (double t = 0; t < durationMs; t += intervalMs)
-        //            {
-        //                capture.Set(CapProp.PosMsec, t);
-        //                using (Mat frame = new Mat())
-        //                {
-        //                    capture.Read(frame);
-        //                    if (!frame.IsEmpty)
-        //                    {
-        //                        string filename = Path.Combine(outputFolder, $"frame_{index:D4}.jpg");
-        //                        frame.Save(filename);
-
-        //                        // نمایش در PictureBox روی UI Thread
-        //                        this.Invoke(new Action(() =>
-        //                        {
-        //                            pictureBoxVideo.Image?.Dispose();
-        //                            pictureBoxVideo.Image = frame.ToBitmap();
-        //                        }));
-
-        //                        index++;
-        //                    }
-        //                    else break;
-        //                }
-
-        //                System.Threading.Thread.Sleep(500);
-        //            }
-
-        //            this.Invoke(new Action(() =>
-        //            {
-        //                MessageBox.Show($"✅ عملیات تمام شد!\n{index} فریم ذخیره شد در:\n{outputFolder}");
-        //                btnCapture2.Enabled = true;
-        //            }));
-        //        }
-        //    });
-        //}
     }
 }
