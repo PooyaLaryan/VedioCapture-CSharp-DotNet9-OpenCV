@@ -21,39 +21,19 @@ namespace VedioCapture
         private readonly object captureLock = new object();
         bool wasPlayingBeforeDrag = false;
         private volatile bool captureIsDisposed = false;
+        private int lastTrackBarValue = -1;
+        private DateTime mouseDownTime;
 
         public Form1()
         {
             InitializeComponent();
+
+            // رویدادهای مرتبط با TrackBar
             trackBarVideo.Scroll += trackBarVideo_Scroll;
-            trackBarVideo.MouseDown += (s, e) => isDragging = true;
-            trackBarVideo.MouseUp += (s, e) => { isDragging = false; UpdateFrameFromTrackBar(); };
+            trackBarVideo.MouseDown += trackBarVideo_MouseDown;
+            trackBarVideo.MouseUp += trackBarVideo_MouseUp;
+
             btnCaptureCurrentFrame.Click += btnCaptureFrame_Click;
-
-            trackBarVideo.MouseDown += (s, e) =>
-            {
-                isDragging = true;
-                // اگر پخش می‌شد، موقتاً نگه دار
-                if (isPlaying)
-                {
-                    wasPlayingBeforeDrag = true;
-                    cts?.Cancel();
-                    isPlaying = false;
-                }
-            };
-
-            trackBarVideo.MouseUp += (s, e) =>
-            {
-                isDragging = false;
-                UpdateFrameFromTrackBar();
-
-                // از همان فریم ادامه بده اگر قبلاً پخش می‌شد
-                if (wasPlayingBeforeDrag)
-                {
-                    wasPlayingBeforeDrag = false;
-                    btnPlay_Click(this, EventArgs.Empty); // یا جدا کردن منطق پخش به متد قابل فراخوانی مجدد
-                }
-            };
         }
 
         private void btnCaptureFrame_Click(object sender, EventArgs e)
@@ -119,16 +99,60 @@ namespace VedioCapture
             trackBarVideo.Value = 0;
         }
 
+        private void trackBarVideo_MouseUp(object sender, MouseEventArgs e)
+        {
+            isDragging = false;
+            var clickDuration = DateTime.Now - mouseDownTime;
+
+            // نمایش فریم جدید در هر صورت
+            ShowFrameAt(trackBarVideo.Value);
+
+            // اگر فقط کلیک کرده بود (نه درگ طولانی)
+            if (clickDuration.TotalMilliseconds < 300)
+            {
+                // به فریم جدید برو
+                lock (captureLock)
+                {
+                    if (capture != null)
+                        capture.Set(Emgu.CV.CvEnum.CapProp.PosFrames, trackBarVideo.Value);
+                }
+
+                // اگر قبلاً پخش می‌شد، دوباره از همین‌جا پخش کن
+                if (wasPlayingBeforeDrag || !isPlaying)
+                {
+                    wasPlayingBeforeDrag = false;
+                    btnPlay_Click(this, EventArgs.Empty);
+                }
+            }
+            else
+            {
+                // اگر فقط درگ بوده و قبلش پخش می‌شده، ادامه بده
+                if (wasPlayingBeforeDrag)
+                {
+                    wasPlayingBeforeDrag = false;
+                    btnPlay_Click(this, EventArgs.Empty);
+                }
+            }
+        }
 
         private void trackBarVideo_MouseDown(object sender, MouseEventArgs e)
         {
             isDragging = true;
+            mouseDownTime = DateTime.Now;
+            lastTrackBarValue = trackBarVideo.Value;
+
+            // اگر در حال پخش بود، موقتاً نگه داریم
+            if (isPlaying)
+            {
+                wasPlayingBeforeDrag = true;
+                cts?.Cancel();
+                isPlaying = false;
+            }
         }
         private void trackBarVideo_Scroll(object sender, EventArgs e)
         {
             if (isDragging)
             {
-                // نمایش فریم حین کشیدن برای پیش‌نمایش سریع
                 ShowFrameAt(trackBarVideo.Value);
             }
         }
@@ -385,68 +409,160 @@ namespace VedioCapture
             }
         }
 
-
         private async void btnCapture2_Click(object sender, EventArgs e)
         {
             if (string.IsNullOrEmpty(videoPath))
             {
-                MessageBox.Show("لطفا ابتدا ویدیو را انتخاب کنید.");
+                MessageBox.Show("لطفاً ابتدا ویدیو را انتخاب کنید.");
                 return;
             }
 
-            double minutes = (double)numericUpDown1.Value;
-            if (minutes <= 0)
+            double intervalValue = (double)numericUpDown1.Value;
+            if (intervalValue <= 0)
             {
-                MessageBox.Show("زمان فاصله باید بیشتر از صفر باشد.");
+                MessageBox.Show("زمان فاصله باید بزرگتر از صفر باشد.");
                 return;
             }
+
+            // بررسی انتخاب واحد از ComboBox
+            string unit = comboBoxTimeUnit.SelectedItem?.ToString() ?? "دقیقه";
+            double intervalMs;
+            if (unit == "دقیقه")
+                intervalMs = intervalValue * 60 * 1000;
+            else // ثانیه
+                intervalMs = intervalValue * 1000;
 
             btnCapture2.Enabled = false;
 
             await Task.Run(() =>
             {
-                double intervalMs = minutes * 60 * 1000;
-                using (var capture = new VideoCapture(videoPath))
+                try
                 {
-                    double totalFrames = capture.Get(CapProp.FrameCount);
-                    double fps = capture.Get(CapProp.Fps);
-                    double durationMs = (totalFrames / fps) * 1000;
-
-                    int index = 0;
-
-                    for (double t = 0; t < durationMs; t += intervalMs)
+                    using (var capture = new VideoCapture(videoPath))
                     {
-                        capture.Set(CapProp.PosMsec, t);
-                        using (Mat frame = new Mat())
+                        double fps = capture.Get(CapProp.Fps);
+                        if (fps <= 0 || double.IsNaN(fps))
+                            fps = 30.0;
+
+                        int intervalFrames = (int)(fps * (intervalMs / 1000.0));
+
+                        int frameIndex = 0;
+                        int savedIndex = 0;
+                        Mat frame = new Mat();
+
+                        while (capture.Read(frame))
                         {
-                            capture.Read(frame);
-                            if (!frame.IsEmpty)
+                            if (frame.IsEmpty) break;
+
+                            // ذخیره فریم بر اساس فاصله محاسبه شده
+                            if (frameIndex % intervalFrames == 0)
                             {
-                                string filename = Path.Combine(outputFolder, $"frame_{index:D4}.jpg");
+                                string filename = Path.Combine(outputFolder, $"frame_{savedIndex:D4}.jpg");
                                 frame.Save(filename);
 
-                                // نمایش در PictureBox روی UI Thread
+                                savedIndex++;
+
+                                // نمایش پیش‌نمایش در PictureBox
                                 this.Invoke(new Action(() =>
                                 {
                                     pictureBoxVideo.Image?.Dispose();
                                     pictureBoxVideo.Image = frame.ToBitmap();
                                 }));
-
-                                index++;
                             }
-                            else break;
+
+                            frameIndex++;
                         }
 
-                        System.Threading.Thread.Sleep(500);
-                    }
+                        frame.Dispose();
 
+                        this.Invoke(new Action(() =>
+                        {
+                            MessageBox.Show($"✅ عملیات تمام شد!\n{savedIndex} فریم ذخیره شد در:\n{outputFolder}");
+                            btnCapture2.Enabled = true;
+                        }));
+                    }
+                }
+                catch (Exception ex)
+                {
                     this.Invoke(new Action(() =>
                     {
-                        MessageBox.Show($"✅ عملیات تمام شد!\n{index} فریم ذخیره شد در:\n{outputFolder}");
+                        MessageBox.Show("❌ خطا در استخراج فریم‌ها:\n" + ex.Message);
                         btnCapture2.Enabled = true;
                     }));
                 }
             });
         }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+            comboBoxTimeUnit.SelectedIndex = 0;
+        }
+
+
+
+
+
+        //private async void btnCapture2_Click(object sender, EventArgs e)
+        //{
+        //    if (string.IsNullOrEmpty(videoPath))
+        //    {
+        //        MessageBox.Show("لطفا ابتدا ویدیو را انتخاب کنید.");
+        //        return;
+        //    }
+
+        //    double minutes = (double)numericUpDown1.Value;
+        //    if (minutes <= 0)
+        //    {
+        //        MessageBox.Show("زمان فاصله باید بیشتر از صفر باشد.");
+        //        return;
+        //    }
+
+        //    btnCapture2.Enabled = false;
+
+        //    await Task.Run(() =>
+        //    {
+        //        double intervalMs = minutes * 60 * 1000;
+        //        using (var capture = new VideoCapture(videoPath))
+        //        {
+        //            double totalFrames = capture.Get(CapProp.FrameCount);
+        //            double fps = capture.Get(CapProp.Fps);
+        //            double durationMs = (totalFrames / fps) * 1000;
+
+        //            int index = 0;
+
+        //            for (double t = 0; t < durationMs; t += intervalMs)
+        //            {
+        //                capture.Set(CapProp.PosMsec, t);
+        //                using (Mat frame = new Mat())
+        //                {
+        //                    capture.Read(frame);
+        //                    if (!frame.IsEmpty)
+        //                    {
+        //                        string filename = Path.Combine(outputFolder, $"frame_{index:D4}.jpg");
+        //                        frame.Save(filename);
+
+        //                        // نمایش در PictureBox روی UI Thread
+        //                        this.Invoke(new Action(() =>
+        //                        {
+        //                            pictureBoxVideo.Image?.Dispose();
+        //                            pictureBoxVideo.Image = frame.ToBitmap();
+        //                        }));
+
+        //                        index++;
+        //                    }
+        //                    else break;
+        //                }
+
+        //                System.Threading.Thread.Sleep(500);
+        //            }
+
+        //            this.Invoke(new Action(() =>
+        //            {
+        //                MessageBox.Show($"✅ عملیات تمام شد!\n{index} فریم ذخیره شد در:\n{outputFolder}");
+        //                btnCapture2.Enabled = true;
+        //            }));
+        //        }
+        //    });
+        //}
     }
 }

@@ -39,14 +39,20 @@
             numericUpDown1 = new NumericUpDown();
             trackBarVideo = new TrackBar();
             btnCaptureCurrentFrame = new Button();
+            panel1 = new Panel();
+            comboBoxTimeUnit = new ComboBox();
+            label1 = new Label();
+            panel2 = new Panel();
             ((System.ComponentModel.ISupportInitialize)pictureBoxVideo).BeginInit();
             ((System.ComponentModel.ISupportInitialize)numericUpDown1).BeginInit();
             ((System.ComponentModel.ISupportInitialize)trackBarVideo).BeginInit();
+            panel1.SuspendLayout();
+            panel2.SuspendLayout();
             SuspendLayout();
             // 
             // btnLoadVedio
             // 
-            btnLoadVedio.Location = new Point(9, 415);
+            btnLoadVedio.Location = new Point(22, 12);
             btnLoadVedio.Name = "btnLoadVedio";
             btnLoadVedio.Size = new Size(75, 23);
             btnLoadVedio.TabIndex = 0;
@@ -56,7 +62,7 @@
             // 
             // btnPlay
             // 
-            btnPlay.Location = new Point(90, 415);
+            btnPlay.Location = new Point(103, 12);
             btnPlay.Name = "btnPlay";
             btnPlay.Size = new Size(75, 23);
             btnPlay.TabIndex = 1;
@@ -66,16 +72,17 @@
             // 
             // pictureBoxVideo
             // 
-            pictureBoxVideo.Dock = DockStyle.Top;
+            pictureBoxVideo.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            pictureBoxVideo.BackColor = SystemColors.ButtonShadow;
             pictureBoxVideo.Location = new Point(0, 0);
             pictureBoxVideo.Name = "pictureBoxVideo";
-            pictureBoxVideo.Size = new Size(800, 358);
+            pictureBoxVideo.Size = new Size(1017, 487);
             pictureBoxVideo.TabIndex = 2;
             pictureBoxVideo.TabStop = false;
             // 
             // btnStop
             // 
-            btnStop.Location = new Point(171, 415);
+            btnStop.Location = new Point(184, 12);
             btnStop.Name = "btnStop";
             btnStop.Size = new Size(75, 23);
             btnStop.TabIndex = 3;
@@ -85,27 +92,28 @@
             // 
             // btnCapture
             // 
-            btnCapture.Location = new Point(252, 415);
+            btnCapture.Location = new Point(265, 12);
             btnCapture.Name = "btnCapture";
             btnCapture.Size = new Size(75, 23);
             btnCapture.TabIndex = 4;
             btnCapture.Text = "Capture";
             btnCapture.UseVisualStyleBackColor = true;
+            btnCapture.Visible = false;
             btnCapture.Click += btnCapture_Click;
             // 
             // btnCapture2
             // 
-            btnCapture2.Location = new Point(333, 415);
+            btnCapture2.Location = new Point(346, 12);
             btnCapture2.Name = "btnCapture2";
-            btnCapture2.Size = new Size(75, 23);
+            btnCapture2.Size = new Size(131, 23);
             btnCapture2.TabIndex = 5;
-            btnCapture2.Text = "Capture2";
+            btnCapture2.Text = "Auto Capture";
             btnCapture2.UseVisualStyleBackColor = true;
             btnCapture2.Click += btnCapture2_Click;
             // 
             // numericUpDown1
             // 
-            numericUpDown1.Location = new Point(616, 415);
+            numericUpDown1.Location = new Point(599, 12);
             numericUpDown1.Name = "numericUpDown1";
             numericUpDown1.Size = new Size(120, 23);
             numericUpDown1.TabIndex = 6;
@@ -113,41 +121,85 @@
             // 
             // trackBarVideo
             // 
-            trackBarVideo.Location = new Point(9, 364);
+            trackBarVideo.Anchor = AnchorStyles.Left | AnchorStyles.Right;
+            trackBarVideo.Location = new Point(12, 8);
             trackBarVideo.Name = "trackBarVideo";
-            trackBarVideo.Size = new Size(779, 45);
+            trackBarVideo.Size = new Size(993, 45);
             trackBarVideo.TabIndex = 7;
             // 
             // btnCaptureCurrentFrame
             // 
-            btnCaptureCurrentFrame.Location = new Point(414, 415);
+            btnCaptureCurrentFrame.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            btnCaptureCurrentFrame.Location = new Point(861, 12);
             btnCaptureCurrentFrame.Name = "btnCaptureCurrentFrame";
             btnCaptureCurrentFrame.Size = new Size(144, 23);
             btnCaptureCurrentFrame.TabIndex = 8;
             btnCaptureCurrentFrame.Text = "Capture Current Frame";
             btnCaptureCurrentFrame.UseVisualStyleBackColor = true;
             // 
+            // panel1
+            // 
+            panel1.Controls.Add(comboBoxTimeUnit);
+            panel1.Controls.Add(label1);
+            panel1.Controls.Add(btnLoadVedio);
+            panel1.Controls.Add(btnCaptureCurrentFrame);
+            panel1.Controls.Add(btnPlay);
+            panel1.Controls.Add(btnStop);
+            panel1.Controls.Add(numericUpDown1);
+            panel1.Controls.Add(btnCapture);
+            panel1.Controls.Add(btnCapture2);
+            panel1.Dock = DockStyle.Bottom;
+            panel1.Location = new Point(0, 558);
+            panel1.Name = "panel1";
+            panel1.Size = new Size(1017, 51);
+            panel1.TabIndex = 9;
+            // 
+            // comboBoxTimeUnit
+            // 
+            comboBoxTimeUnit.DropDownStyle = ComboBoxStyle.DropDownList;
+            comboBoxTimeUnit.Items.AddRange(new object[] { "دقیقه", "ثانیه" });
+            comboBoxTimeUnit.Location = new Point(725, 12);
+            comboBoxTimeUnit.Name = "comboBoxTimeUnit";
+            comboBoxTimeUnit.Size = new Size(121, 23);
+            comboBoxTimeUnit.TabIndex = 0;
+            // 
+            // label1
+            // 
+            label1.AutoSize = true;
+            label1.Location = new Point(494, 16);
+            label1.Name = "label1";
+            label1.Size = new Size(99, 15);
+            label1.TabIndex = 9;
+            label1.Text = "Frame to Capture";
+            // 
+            // panel2
+            // 
+            panel2.Controls.Add(trackBarVideo);
+            panel2.Dock = DockStyle.Bottom;
+            panel2.Location = new Point(0, 499);
+            panel2.Name = "panel2";
+            panel2.Size = new Size(1017, 59);
+            panel2.TabIndex = 10;
+            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(800, 450);
-            Controls.Add(btnCaptureCurrentFrame);
-            Controls.Add(trackBarVideo);
-            Controls.Add(numericUpDown1);
-            Controls.Add(btnCapture2);
-            Controls.Add(btnCapture);
-            Controls.Add(btnStop);
+            ClientSize = new Size(1017, 609);
+            Controls.Add(panel2);
+            Controls.Add(panel1);
             Controls.Add(pictureBoxVideo);
-            Controls.Add(btnPlay);
-            Controls.Add(btnLoadVedio);
             Name = "Form1";
             Text = "Vedio Capture";
+            Load += Form1_Load;
             ((System.ComponentModel.ISupportInitialize)pictureBoxVideo).EndInit();
             ((System.ComponentModel.ISupportInitialize)numericUpDown1).EndInit();
             ((System.ComponentModel.ISupportInitialize)trackBarVideo).EndInit();
+            panel1.ResumeLayout(false);
+            panel1.PerformLayout();
+            panel2.ResumeLayout(false);
+            panel2.PerformLayout();
             ResumeLayout(false);
-            PerformLayout();
         }
 
         #endregion
@@ -162,5 +214,9 @@
         private NumericUpDown numericUpDown1;
         private TrackBar trackBarVideo;
         private Button btnCaptureCurrentFrame;
+        private Panel panel1;
+        private Panel panel2;
+        private Label label1;
+        private ComboBox comboBoxTimeUnit;
     }
 }
