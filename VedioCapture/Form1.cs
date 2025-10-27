@@ -18,7 +18,9 @@ namespace VedioCapture
         private CancellationTokenSource captureCts;
         private string outputFolder;
         private bool isDragging = false;
-
+        private readonly object captureLock = new object();
+        bool wasPlayingBeforeDrag = false;
+        private volatile bool captureIsDisposed = false;
 
         public Form1()
         {
@@ -27,6 +29,31 @@ namespace VedioCapture
             trackBarVideo.MouseDown += (s, e) => isDragging = true;
             trackBarVideo.MouseUp += (s, e) => { isDragging = false; UpdateFrameFromTrackBar(); };
             btnCaptureCurrentFrame.Click += btnCaptureFrame_Click;
+
+            trackBarVideo.MouseDown += (s, e) =>
+            {
+                isDragging = true;
+                // اگر پخش می‌شد، موقتاً نگه دار
+                if (isPlaying)
+                {
+                    wasPlayingBeforeDrag = true;
+                    cts?.Cancel();
+                    isPlaying = false;
+                }
+            };
+
+            trackBarVideo.MouseUp += (s, e) =>
+            {
+                isDragging = false;
+                UpdateFrameFromTrackBar();
+
+                // از همان فریم ادامه بده اگر قبلاً پخش می‌شد
+                if (wasPlayingBeforeDrag)
+                {
+                    wasPlayingBeforeDrag = false;
+                    btnPlay_Click(this, EventArgs.Empty); // یا جدا کردن منطق پخش به متد قابل فراخوانی مجدد
+                }
+            };
         }
 
         private void btnCaptureFrame_Click(object sender, EventArgs e)
@@ -72,11 +99,26 @@ namespace VedioCapture
         {
             if (capture == null) return;
 
-            double totalFrames = capture.Get(Emgu.CV.CvEnum.CapProp.FrameCount);
+            double totalFrames;
+            lock (captureLock)
+            {
+                if (captureIsDisposed || capture == null) return;
+                try
+                {
+                    totalFrames = capture.Get(Emgu.CV.CvEnum.CapProp.FrameCount);
+                }
+                catch (ObjectDisposedException)
+                {
+                    return;
+                }
+            }
+
+            int max = (int)Math.Max(1, totalFrames - 1);
             trackBarVideo.Minimum = 0;
-            trackBarVideo.Maximum = (int)totalFrames - 1;
+            trackBarVideo.Maximum = max;
             trackBarVideo.Value = 0;
         }
+
 
         private void trackBarVideo_MouseDown(object sender, MouseEventArgs e)
         {
@@ -96,29 +138,50 @@ namespace VedioCapture
             ShowFrameAt(trackBarVideo.Value);
         }
 
-        private string FormatTime(double ms)
-        {
-            int totalSeconds = (int)(ms / 1000);
-            int minutes = totalSeconds / 60;
-            int seconds = totalSeconds % 60;
-            return $"{minutes:D2}:{seconds:D2}";
-        }
-
         private void ShowFrameAt(double frameNumber)
         {
             if (capture == null) return;
 
-            capture.Set(Emgu.CV.CvEnum.CapProp.PosFrames, frameNumber);
-            using (Mat frame = new Mat())
+            using (var frame = new Mat())
             {
-                capture.Read(frame);
+                lock (captureLock)
+                {
+                    if (captureIsDisposed || capture == null) return;
+                    try
+                    {
+                        capture.Set(Emgu.CV.CvEnum.CapProp.PosFrames, frameNumber);
+                        capture.Read(frame);
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        return;
+                    }
+                }
+
                 if (!frame.IsEmpty)
                 {
-                    pictureBoxVideo.Image?.Dispose();
-                    pictureBoxVideo.Image = frame.ToBitmap();
+                    if (!this.IsDisposed && pictureBoxVideo.IsHandleCreated && !pictureBoxVideo.IsDisposed)
+                    {
+                        try
+                        {
+                            this.Invoke(new Action(() =>
+                            {
+                                if (!this.IsDisposed && !pictureBoxVideo.IsDisposed)
+                                {
+                                    pictureBoxVideo.Image?.Dispose();
+                                    pictureBoxVideo.Image = frame.ToBitmap();
+                                }
+                            }));
+                        }
+                        catch (ObjectDisposedException)
+                        {
+                            // کنترل یا فرم در حال بسته شدن است — نادیده بگیر
+                        }
+                    }
                 }
             }
         }
+
 
         private async void btnPlay_Click(object sender, EventArgs e)
         {
@@ -132,8 +195,17 @@ namespace VedioCapture
             isPlaying = true;
             cts = new CancellationTokenSource();
 
-            // خواندن fps برای زمان‌بندی دقیق‌تر
-            double fps = capture.Get(Emgu.CV.CvEnum.CapProp.Fps);
+            double fps;
+            lock (captureLock)
+            {
+                if (captureIsDisposed || capture == null)
+                {
+                    isPlaying = false;
+                    return;
+                }
+                fps = capture.Get(Emgu.CV.CvEnum.CapProp.Fps);
+            }
+
             int delay = fps > 1 ? (int)(1000.0 / fps) : 33;
 
             await Task.Run(() =>
@@ -143,26 +215,50 @@ namespace VedioCapture
                 {
                     while (isPlaying && !cts.IsCancellationRequested)
                     {
-                        if (!capture.Read(mat) || mat.IsEmpty)
-                            break;
+                        bool readOk = false;
+                        lock (captureLock)
+                        {
+                            if (captureIsDisposed || capture == null) break;
+                            try
+                            {
+                                readOk = capture.Read(mat);
+                            }
+                            catch (ObjectDisposedException)
+                            {
+                                break;
+                            }
+                        }
 
-                        // کلون کردن فریم و ذخیره در currentFrame به صورت ایمن
+                        if (!readOk || mat.IsEmpty) break;
+
                         lock (frameLock)
                         {
                             currentFrame?.Dispose();
                             currentFrame = mat.Clone();
                         }
 
-                        // تبدیل برای نمایش در PictureBox
                         using (var img = currentFrame.ToImage<Bgr, byte>())
                         {
                             var bmp = img.ToBitmap();
-                            Invoke(new Action(() =>
+                            if (!this.IsDisposed && pictureBoxVideo.IsHandleCreated && !pictureBoxVideo.IsDisposed)
                             {
-                                pictureBoxVideo.Image?.Dispose();
-                                pictureBoxVideo.Image = (Bitmap)bmp.Clone();
-                                bmp.Dispose();
-                            }));
+                                try
+                                {
+                                    this.Invoke(new Action(() =>
+                                    {
+                                        if (!this.IsDisposed && !pictureBoxVideo.IsDisposed)
+                                        {
+                                            pictureBoxVideo.Image?.Dispose();
+                                            pictureBoxVideo.Image = (Bitmap)bmp.Clone();
+                                        }
+                                    }));
+                                }
+                                catch (ObjectDisposedException)
+                                {
+                                    break;
+                                }
+                            }
+                            bmp.Dispose();
                         }
 
                         Thread.Sleep(delay);
@@ -171,9 +267,12 @@ namespace VedioCapture
                 finally
                 {
                     mat.Dispose();
+                    isPlaying = false;
                 }
             }, cts.Token);
         }
+
+
 
         private void btnStop_Click(object sender, EventArgs e)
         {
@@ -247,15 +346,45 @@ namespace VedioCapture
 
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
-            base.OnFormClosing(e);
-            timerCapture?.Stop();
-            cts?.Cancel();
-            capture?.Dispose();
-            lock (frameLock)
+            try
             {
-                currentFrame?.Dispose();
+                // قطع کردن پخش و تسلیم درخواست لغو
+                isPlaying = false;
+                cts?.Cancel();
+                captureCts?.Cancel();
+
+                // علامت‌گذاری که capture قرار است Dispose شود
+                lock (captureLock)
+                {
+                    captureIsDisposed = true;
+                    if (capture != null)
+                    {
+                        try
+                        {
+                            capture.Dispose();
+                        }
+                        catch { /* ignore */ }
+                        capture = null;
+                    }
+                }
+
+                // آزادسازی فریم جاری
+                lock (frameLock)
+                {
+                    currentFrame?.Dispose();
+                    currentFrame = null;
+                }
+
+                // کمی زمان برای اطمینان از خاتمه threadها (اختیاری، کوتاه)
+                Thread.Sleep(50);
+            }
+            catch { /* جلوگیری از خطا در زمان بستن فرم */ }
+            finally
+            {
+                base.OnFormClosing(e);
             }
         }
+
 
         private async void btnCapture2_Click(object sender, EventArgs e)
         {
